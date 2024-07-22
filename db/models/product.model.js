@@ -34,11 +34,10 @@ const ProductSchema = {
     field: 'created_at',
     defaultValue: Sequelize.NOW,
   },
-  userId: {
-    field: 'cateogory_id',
+  categoryId: {
+    field: 'category_id',
     allowNull: false,
     type: DataTypes.INTEGER,
-    unique: true,
     references: {
       model: CATEGORY_TABLE,
       key: 'id',
