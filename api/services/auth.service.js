@@ -32,29 +32,46 @@ class authService {
     return { user, token };
   }
 
-  async sendRecovery(email){
+  async sendRecovery(email) {
     const user = await service.findByEmail(email);
     if (!user) {
       throw boom.unauthorized();
     }
 
-    const payload = { sub: user.id }
-    const token = jwt.sign(payload, config.jwtSecret, {expiresIn: '15 min'});
-    const link = `http://myfrontend.com/recovery?token=${token}`
-    await service.update(user.id, {recoveryToken: token})
+    const payload = { sub: user.id };
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '15 min' });
+    const link = `http://myfrontend.com/recovery?token=${token}`;
+    await service.update(user.id, { recoveryToken: token });
     const mail = {
-        from: config.smpt_email,
-        to: `${user.email}`,
-        subject: 'Email para recuperar contraseña',
-        html: `<b>Ingresa a este link para recuperar la contraseña => ${link}</b>`, 
+      from: config.smpt_email,
+      to: `${user.email}`,
+      subject: 'Email para recuperar contraseña',
+      html: `<b>Ingresa a este link para recuperar la contraseña => ${link}</b>`,
+    };
+
+    const rta = await this.sendMail(mail);
+    return rta;
+  }
+
+  async changePassword(token, newPassword) {
+    try {
+      const payload = jwt.verify(token, config.jwtSecret);
+
+      const user = await service.findOne(payload.sub);
+      if (user.recoveryToken !== token) {
+        throw boom.unauthorized();
       }
 
-      const rta = await this.sendMail(mail)
-      return rta
+      const hash = await bcrypt.hash(newPassword, 10);
+
+      await service.update(user.id, { recoveryToken: null, password: hash });
+      return { message: 'password changed' };
+    } catch (error) {
+      throw boom.unauthorized();
+    }
   }
 
   async sendMail(infoMail) {
-    
     const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 465,
@@ -66,7 +83,7 @@ class authService {
 
     await transporter.sendMail(infoMail);
 
-    return {message: 'mail sent'}
+    return { message: 'mail sent' };
   }
 }
 
